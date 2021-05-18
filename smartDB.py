@@ -1,7 +1,15 @@
 import psycopg2
+import xml.etree.ElementTree as et
 
-connectionstring = "dbname='postgres' user='postgres' password='postgres123' host='localhost' port='5432'"
+# Create connection string
+SmartCreds = et.parse('credentials.xml').getroot()
+dbname = SmartCreds[0].text
+user = SmartCreds[1].text
+pwd = SmartCreds[2].text
+host = SmartCreds[3].text
+portNum = SmartCreds[4].text
 
+connectionstring = f"dbname='{dbname}' user='{user}' password='{pwd}' host='{host}' port='{portNum}'"
 class Database:
 
     def delete_table():

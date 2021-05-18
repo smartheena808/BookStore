@@ -25,6 +25,7 @@ class BookStore:
     def __init__(self, master=None):
         # Create menubar
         self.master = master
+        self.master.wm_title('BookStore')
         self.menubar = Menu(self.master)
         self.master.config(menu=self.menubar)
 
@@ -66,6 +67,9 @@ class BookStore:
         self.viewEntryList.config(yscrollcommand= self.yscrollbarlist.set)
         self.viewEntryList.config(xscrollcommand= self.xscrollbarlist.set)
 
+        # bind viewEntryList with an event
+        self.viewEntryList.bind('<<ListboxSelect>>', self.get_selected_row)
+
         # Create 4 entries for input book's detail
         self.titleLabel = ttk.Label(self.detailFrame, text='Title: ', width=8)
         self.titleLabel.grid(row=0, column=0)
@@ -83,13 +87,13 @@ class BookStore:
         self.yearVar = IntVar(self.detailFrame)
 
         self.titleEntry = ttk.Entry(self.detailFrame, textvariable=self.titleVar, width=30)
-        self.titleEntry.grid(row=0, column=1,padx=5)
+        self.titleEntry.grid(row=0, column=1,padx=5 ,pady=5)
         self.authorEntry = ttk.Entry(self.detailFrame, textvariable=self.authorVar, width=30)
-        self.authorEntry.grid(row=0, column=3, padx=5)
+        self.authorEntry.grid(row=0, column=3, padx=5 ,pady=5)
         self.yearEntry = ttk.Entry(self.detailFrame, textvariable=self.yearVar, width=30)
-        self.yearEntry.grid(row=1, column=1, padx=5)
+        self.yearEntry.grid(row=1, column=1, padx=5 ,pady=5)
         self.isbnEntry = ttk.Entry(self.detailFrame, textvariable=self.isbnVar, width=30)
-        self.isbnEntry.grid(row=1, column=3, padx=5)
+        self.isbnEntry.grid(row=1, column=3, padx=5 ,pady=5)
 
         # Create control buttons, parent: controlFrame
         self.viewBtn = ttk.Button(self.controlFrame, text='ViewcAll', command=self.view_all).pack()
@@ -104,6 +108,20 @@ class BookStore:
 
         # Create SmartStore database if it doesn't exists.
         db.create_table()
+
+    # Event handling when row is clicked
+    def get_selected_row(self, event):
+        self.index = self.viewEntryList.curselection()[0]
+        self.selectedrow = self.viewEntryList.get(self.index)
+        self.details = self.selectedrow.split(',')
+        self.selection = self.details[-1].lstrip()
+        if self.selection != '':
+            selectedBook = db.search_by_isbn(self.selection)
+            for book in selectedBook:
+                self.titleVar.set(book[0])
+                self.authorVar.set(book[1])
+                self.yearVar.set(int(book[2]))
+                self.isbnVar.set(book[3])
 
     # Clear all the text inside the entries when adding new entry or deleting existing entry.
     def clear_entries(self):
@@ -120,9 +138,9 @@ class BookStore:
         self.author = self.authorEntry.get()
         self.year = self.yearEntry.get()
         if self.author == '':
-            author = 'unknown'
+            self.author = 'unknown'
         if self.year==0 or self.year == None:
-            year = 0
+            self.year = 0
         if self.title == '':
             messagebox.askokcancel(title='Deleting info' , message='Please enter book\'s title')
         elif self.isbn == '':
@@ -142,18 +160,35 @@ class BookStore:
         self.title = self.titleEntry.get()
         self.author = self.authorEntry.get()
         self.isbn = self.isbnEntry.get()
+        
         if self.title != '':
-            db.delete_title(self.title)
-            messagebox.showinfo(title='Deleting Info', message=f'{self.title} has been deleted.')
+            if len(db.search_by_title(self.title)) == 0:
+                messagebox.showinfo(title='Deleting Info', message=f'{self.title} does not exists.')
+            else:    
+                db.delete_title(self.title)
+                messagebox.showinfo(title='Deleting Info', message=f'{self.title} has been deleted.')
             self.clear_entries()
         elif self.author != '':
-            db.delete_author(self.author)
-            messagebox.showinfo(title='Deleting Info', message=f'{self.author} has been deleted.')
+            if len(db.search_by_author(self.author)) == 0:
+                messagebox.showinfo(title='Deleting Info', message=f'{self.author} does not exists.')
+            else: 
+                db.delete_author(self.author)
+                messagebox.showinfo(title='Deleting Info', message=f'{self.author} has been deleted.')
             self.clear_entries()
         elif self.isbn != '':
-            db.delete_isbn(self.isbn)
-            messagebox.showinfo(title='Deleting Info', message=f'{self.isbn} has been deleted.')
+            if len(db.search_by_isbn(self.isbn)) == 0:
+                messagebox.showinfo(title='Deleting Info', message=f'{self.isbn} does not exists.')
+            else: 
+                db.delete_isbn(self.isbn)
+                messagebox.showinfo(title='Deleting Info', message=f'{self.isbn} has been deleted.')
             self.clear_entries()
+        elif self.selection != '':
+            if len(db.search_by_isbn(self.selection)) == 0:
+                messagebox.showinfo(title='Deleting Info', message=f'{self.selection} does not exists.')
+            else: 
+                db.delete_isbn(self.selection)
+                messagebox.showinfo(title='Deleting Info', message=f'{self.selection} has been deleted.')
+            self.clear_entries()   
         else:
             messagebox.askokcancel(title='Deleting info' , message='Please enter book\'s title or author or ISBN no.')
 
@@ -190,18 +225,23 @@ class BookStore:
         self.year = self.yearEntry.get()
         self.isbn = self.isbnEntry.get()
         if self.title == '':
-            messagebox.askokcancel(title='Deleting info' , message='Please enter book\'s title')
+            messagebox.askokcancel(title='Updating info' , message='Please enter book\'s title')
         elif self.isbn == '':
-            messagebox.askokcancel(title='Deleting info' , message='Please enter book\'s title')
+            messagebox.askokcancel(title='updating info' , message='ISBN cannot be empty.')
         if self.author == '':
-            author = 'unknown'
+            self.author = 'unknown'
         if self.year==0 or self.year == None:
-            year = 0
-        
+            self.year = 0
+
         if self.title != '' and self.isbn != '':
-            # add to the database
-            db.update_data(self.title, self.author, self.year, self.isbn)
-            self.clear_entries()
+            # check if the book is exixts or not in database based on ISBN
+            findBook = db.search_by_isbn(self.isbn)
+            if len(findBook) == 0:
+                messagebox.askokcancel(title='updating info' , message='ISBN cannot be found. Do not update the ISBN.')
+            else:    
+                # add to the database
+                db.update_data(self.title, self.author, self.year, self.isbn)
+                self.clear_entries()
        
         # view the updated entry
         books = db.view_data()
