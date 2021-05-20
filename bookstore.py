@@ -88,10 +88,14 @@ class BookStore:
 
         self.titleEntry = ttk.Entry(self.detailFrame, textvariable=self.titleVar, width=30)
         self.titleEntry.grid(row=0, column=1,padx=5 ,pady=5)
+        self.titleEntry.focus_set()
+        self.titleEntry.bind('<Return>', lambda e: self.authorEntry.focus_set())
         self.authorEntry = ttk.Entry(self.detailFrame, textvariable=self.authorVar, width=30)
         self.authorEntry.grid(row=0, column=3, padx=5 ,pady=5)
+        self.authorEntry.bind('<Return>', lambda e: self.yearEntry.focus_set())
         self.yearEntry = ttk.Entry(self.detailFrame, textvariable=self.yearVar, width=30)
         self.yearEntry.grid(row=1, column=1, padx=5 ,pady=5)
+        self.yearEntry.bind('<Return>', lambda e: self.isbnEntry.focus_set())
         self.isbnEntry = ttk.Entry(self.detailFrame, textvariable=self.isbnVar, width=30)
         self.isbnEntry.grid(row=1, column=3, padx=5 ,pady=5)
 
@@ -117,11 +121,15 @@ class BookStore:
         self.selection = self.details[-1].lstrip()
         if self.selection != '':
             selectedBook = db.search_by_isbn(self.selection)
-            for book in selectedBook:
-                self.titleVar.set(book[0])
-                self.authorVar.set(book[1])
-                self.yearVar.set(int(book[2]))
-                self.isbnVar.set(book[3])
+            if isinstance(selectedBook, list) :
+                selectedBook = db.search_by_isbn(self.selection)
+                for book in selectedBook:
+                    self.titleVar.set(book[0])
+                    self.authorVar.set(book[1])
+                    self.yearVar.set(int(book[2]))
+                    self.isbnVar.set(book[3])
+            else:
+                messagebox.showerror(title='DB Connection Error', message=selectedBook)        
 
     # Clear all the text inside the entries when adding new entry or deleting existing entry.
     def clear_entries(self):
@@ -142,13 +150,17 @@ class BookStore:
         if self.year==0 or self.year == None:
             self.year = 0
         if self.title == '':
-            messagebox.askokcancel(title='Deleting info' , message='Please enter book\'s title')
+            messagebox.askokcancel(title='Add New Entry' , message='Please enter book\'s title')
         elif self.isbn == '':
-            messagebox.askokcancel(title='Deleting info' , message='Please enter book\'s isbn')
+            messagebox.askokcancel(title='Add New Entry' , message='Please enter book\'s isbn')
 
         if self.title != '' and self.isbn != '':
             # add to the database
-            db.insert_entry(self.title, self.author, self.year, self.isbn)
+            isSuccess = db.insert_entry(self.title, self.author, self.year, self.isbn)
+            if isSuccess == None:
+                messagebox.showinfo(title='Add Entry', message='Adding new book successful!')
+            else:
+                messagebox.showerror(title='DB connection error', message=isSuccess)    
             self.clear_entries()
        
         # checking if the entry successful
@@ -161,41 +173,96 @@ class BookStore:
         self.author = self.authorEntry.get()
         self.isbn = self.isbnEntry.get()
         
-        if self.title != '':
-            if len(db.search_by_title(self.title)) == 0:
-                messagebox.showinfo(title='Deleting Info', message=f'{self.title} does not exists.')
-            else:    
-                db.delete_title(self.title)
-                messagebox.showinfo(title='Deleting Info', message=f'{self.title} has been deleted.')
-            self.clear_entries()
-        elif self.author != '':
-            if len(db.search_by_author(self.author)) == 0:
-                messagebox.showinfo(title='Deleting Info', message=f'{self.author} does not exists.')
-            else: 
-                db.delete_author(self.author)
-                messagebox.showinfo(title='Deleting Info', message=f'{self.author} has been deleted.')
-            self.clear_entries()
+        if self.title != '' and self.isbn =='':
+            self.isSuccess = db.search_by_title(self.title)
+            if isinstance(self.isSuccess, list):
+                if len(db.search_by_title(self.title)) == 0:
+                    messagebox.showinfo(title='Deleting Info', message=f'{self.title} does not exists.')
+                elif len(db.search_by_title(self.title)) > 1:
+                    messagebox.showinfo(title='Deleting Info', message=f'{self.title} found more than one books.')
+                    self.view_books(self.isSuccess)
+                else:   
+                    isSuccess = db.delete_title(self.title)
+                    if (isSuccess) == None:
+                        messagebox.showinfo(title='Deleting Info', message=f'{self.title} has been deleted.')
+                        # checking if the entry successful
+                        books = db.view_data()
+                        if isinstance(books, list):
+                            self.view_books(books)
+                        else:
+                            messagebox.showerror(title='DB connection error', message=books)
+                    else:
+                        messagebox.showerror(title='DB connection error', message=isSuccess)
+                self.clear_entries()
+            else:
+                messagebox.showerror(title='DB connection error', message=self.isSuccess)     
+        elif self.author != '' and self.isbn =='':
+            isSuccess = db.search_by_author(self.author)
+            if isinstance(isSuccess, list):   
+                if len(db.search_by_author(self.author)) == 0:
+                    messagebox.showinfo(title='Deleting Info', message=f'{self.author} does not exists.')
+                elif len(db.search_by_author(self.author)) > 1:
+                    messagebox.showinfo(title='Deleting Info', message=f'{self.title} found more than one books.')
+                    self.view_books(isSuccess)    
+                else: 
+                    isSuccess = db.delete_author(self.author)
+                    if (isSuccess) == None:
+                        messagebox.showinfo(title='Deleting Info', message=f'{self.author} has been deleted.')
+                        books = db.view_data()
+                        if isinstance(books, list):
+                            self.view_books(books)
+                        else:
+                            messagebox.showerror(title='DB connection error', message=books)
+                    else:
+                        messagebox.showerror(title='DB connection error', message=isSuccess)    
+                self.clear_entries()
+            else:
+                messagebox.showerror(title='DB connection error', message=isSuccess) 
         elif self.isbn != '':
-            if len(db.search_by_isbn(self.isbn)) == 0:
-                messagebox.showinfo(title='Deleting Info', message=f'{self.isbn} does not exists.')
-            else: 
-                db.delete_isbn(self.isbn)
-                messagebox.showinfo(title='Deleting Info', message=f'{self.isbn} has been deleted.')
-            self.clear_entries()
+            isSuccess = db.search_by_isbn(self.isbn)
+            if isinstance(isSuccess, list):
+                if len(db.search_by_isbn(self.isbn)) == 0:
+                    messagebox.showinfo(title='Deleting Info', message=f'{self.isbn} does not exists.')
+                elif len(db.search_by_isbn(self.isbn)) > 1:
+                    messagebox.showinfo(title='Deleting Info', message=f'{self.title} found more than one books.')
+                    self.view_books(isSuccess)    
+                else: 
+                    isSuccess = db.delete_isbn(self.isbn)
+                    if (isSuccess) == None:
+                        messagebox.showinfo(title='Deleting Info', message=f'{self.isbn} has been deleted.')
+                        books = db.view_data()
+                        if isinstance(books, list):
+                            self.view_books(books)
+                        else:
+                            messagebox.showerror(title='DB connection error', message=books)                       
+                    else:
+                        messagebox.showerror(title='DB connection error', message=isSuccess)    
+                self.clear_entries()    
+            else:
+                messagebox.showerror(title='DB connection error', message=isSuccess)    
+            
         elif self.selection != '':
-            if len(db.search_by_isbn(self.selection)) == 0:
-                messagebox.showinfo(title='Deleting Info', message=f'{self.selection} does not exists.')
-            else: 
-                db.delete_isbn(self.selection)
-                messagebox.showinfo(title='Deleting Info', message=f'{self.selection} has been deleted.')
-            self.clear_entries()   
+            isSuccess = db.search_by_isbn(self.selection)
+            if isinstance(isSuccess, list):
+                if len(db.search_by_isbn(self.selection)) == 0:
+                    messagebox.showinfo(title='Deleting Info', message=f'{self.selection} does not exists.')
+                else: 
+                    isSuccess = db.delete_isbn(self.selection)
+                    if (isSuccess) == None:
+                        messagebox.showinfo(title='Deleting Info', message=f'{self.selection} has been deleted.')
+                        books = db.view_data()
+                        if isinstance(books, list):
+                            self.view_books(books)
+                        else:
+                            messagebox.showerror(title='DB connection error', message=isSuccess)
+                    else:
+                        messagebox.showerror(title='DB connection error', message=isSuccess)    
+                self.clear_entries()   
+            else:
+                messagebox.showerror(title='DB connection error', message=isSuccess)    
         else:
             messagebox.askokcancel(title='Deleting info' , message='Please enter book\'s title or author or ISBN no.')
-
-        # checking if the entry successful
-        books = db.view_data()
-        self.view_books(books)
-
+        
     # Search a book based on title or author or year or isbn
     def search_book(self):
         self.title = self.titleEntry.get()
@@ -204,19 +271,31 @@ class BookStore:
         self.isbn = self.isbnEntry.get()
         if self.title !='':
             booksfound = db.search_by_title(self.title)
-            self.view_books(booksfound)
+            if isinstance(booksfound, list):
+                self.view_books(booksfound)
+            else:
+                messagebox.showerror(title='DB connection error', message=booksfound)    
         elif self.author !='':
             booksfound = db.search_by_author(self.author)
-            self.view_books(booksfound)
+            if isinstance(booksfound, list):
+                self.view_books(booksfound)
+            else:
+                messagebox.showerror(title='DB connection error', message=booksfound)
         elif self.year !='':
             booksfound = db.search_by_year(self.year)
-            self.view_books(booksfound)    
+            if isinstance(booksfound, list):
+                self.view_books(booksfound)
+            else:
+                messagebox.showerror(title='DB connection error', message=booksfound)    
         elif self.isbn !='':
             booksfound = db.search_by_isbn(self.isbn)
-            self.view_books(booksfound)
+            if isinstance(booksfound, list):
+                self.view_books(booksfound)
+            else:
+                messagebox.showerror(title='DB connection error', message=booksfound)
 
         if self.title == '' and self.author == '' and self.isbn == '':
-            messagebox.askokcancel(title='Deleting info' , message='Please enter book\'s title or author or year or ISBN no.')
+            messagebox.askokcancel(title='Search book' , message='Please enter book\'s title or author or year or ISBN no.')
 
     # Update book's detail
     def update_entry(self):
@@ -237,15 +316,25 @@ class BookStore:
             # check if the book is exixts or not in database based on ISBN
             findBook = db.search_by_isbn(self.isbn)
             if len(findBook) == 0:
-                messagebox.askokcancel(title='updating info' , message='ISBN cannot be found. Do not update the ISBN.')
+                messagebox.askokcancel(title='Updating info' , message='ISBN cannot be found. Do not update the ISBN.')
+            elif len(findBook) > 1:
+                messagebox.showinfo(title='Updating info', message=f'{self.title} found more than one books.')
+                self.view_books(findBook)    
             else:    
                 # add to the database
-                db.update_data(self.title, self.author, self.year, self.isbn)
+                isSuccess = db.update_data(self.title, self.author, self.year, self.isbn)
+                if isSuccess == None:
+                    messagebox.showinfo(title='Updating info', message=f'{self.title} successful updated!')
+                else:
+                    messagebox.showinfo(title='Updating info', message=isSuccess)    
                 self.clear_entries()
        
         # view the updated entry
         books = db.view_data()
-        self.view_books(books)
+        if isinstance(books, list):
+            self.view_books(books)
+        else:
+            messagebox.showerror(title='DB connection error', message=books)
 
     # show book's details in the database into booklist
     def view_books(self, books):
@@ -259,7 +348,10 @@ class BookStore:
     # view all the books that available in the database
     def view_all(self):
         books = db.view_data()
-        self.view_books(books)        
+        if isinstance(books, list):
+            self.view_books(books)
+        else:
+            messagebox.showerror(title='DB connection error', message=books)        
 
 def main():
     root = Tk()
