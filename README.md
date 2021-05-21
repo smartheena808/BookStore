@@ -22,4 +22,5 @@ user, password, host and port number.
 - To run the script,
 In the terminal type: python bookstore.py
 
-# 
+# GUI Sample
+![BookStore-GUI-Sample](https://github.com/smartheena808/BookStore/blob/main/BookStore.PNG?raw=true)
