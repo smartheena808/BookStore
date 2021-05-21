@@ -1,5 +1,3 @@
-import re
-from tkinter.constants import NO
 import psycopg2
 import xml.etree.ElementTree as et
 
